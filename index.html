@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Storage Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #323133;
+        }
+
+        #map {
+            height: 900px;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 10px;
+            background-color: #4caf50;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 80%;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            margin: 10px 0;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0 20px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #contactsContainer {
+            max-width: 100%;
+            margin-top: 10px;
+        }
+
+        .contact-item {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .contact-item input {
+            flex: 1;
+        }
+
+        .contact-item button {
+            background-color: #f44336;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            padding: 8px;
+            margin-top: 5px;
+        }
+
+        .contact-item button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <button onclick="toggleForm()">Add Marker</button>
+
+    <form id="markerForm" style="display:none;">
+        <label for="latitude">Latitude:</label>
+        <input type="text" id="latitude" required>
+
+        <label for="longitude">Longitude:</label>
+        <input type="text" id="longitude" required>
+
+        <label for="markerName">Marker Name:</label>
+        <input type="text" id="markerName" required>
+
+        <div id="contactsContainer">
+            <h3>Contact Details</h3>
+            <button type="button" onclick="addContact()">Add Contact</button>
+            <div id="contactsList"></div>
+        </div>
+
+        <button type="button" onclick="addMarker()">Add Marker</button>
+    </form>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([0, 0], 2);
+        L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+}).addTo(map);
+
+
+        const savedMarkers = JSON.parse(localStorage.getItem('markers')) || [];
+
+        function generatePopupContent(markerName, lat, lng, contacts) {
+            let content = `Marker: ${markerName}<br>Latitude: ${lat}<br>Longitude: ${lng}`;
+
+            if (contacts && contacts.length > 0) {
+                content += '<br><br>Contact Details:<ul>';
+                contacts.forEach(contact => {
+                    content += `<li>Name: ${contact.name}, Phone: ${contact.phone}, Details: ${contact.details || ''}</li>`;
+                });
+                content += '</ul>';
+            }
+
+            return content;
+        }
+
+        function addMarker() {
+            const latitude = document.getElementById('latitude').value;
+            const longitude = document.getElementById('longitude').value;
+            const markerName = document.getElementById('markerName').value;
+
+            if (!latitude || !longitude || !markerName) {
+                alert('Please enter valid data for latitude, longitude, and marker name.');
+                return;
+            }
+
+            const contacts = [];
+            const contactItems = document.querySelectorAll('.contact-item');
+
+            contactItems.forEach(contactItem => {
+                const contactName = contactItem.querySelector('.contact-name').value;
+                const contactPhone = contactItem.querySelector('.contact-phone').value;
+                const contactDetails = contactItem.querySelector('.contact-details').value;
+
+                contacts.push({ name: contactName, phone: contactPhone, details: contactDetails || '' });
+            });
+
+            const marker = L.marker([latitude, longitude]).addTo(map);
+            const popupContent = generatePopupContent(markerName, latitude, longitude, contacts);
+            marker.bindPopup(popupContent).openPopup();
+
+            savedMarkers.push({ lat: latitude, lng: longitude, name: markerName, contacts });
+            localStorage.setItem('markers', JSON.stringify(savedMarkers));
+
+            console.log(`Marker: ${markerName}, Latitude: ${latitude}, Longitude: ${longitude}, Contacts:`, contacts);
+
+            clearForm();
+            toggleForm();
+        }
+
+        function addContact() {
+            const contactsList = document.getElementById('contactsList');
+
+            const contactItem = document.createElement('li');
+            contactItem.classList.add('contact-item');
+
+            const contactNameInput = document.createElement('input');
+            contactNameInput.type = 'text';
+            contactNameInput.placeholder = 'Contact Name';
+            contactNameInput.classList.add('contact-name');
+            contactItem.appendChild(contactNameInput);
+
+            const contactPhoneInput = document.createElement('input');
+            contactPhoneInput.type = 'text';
+            contactPhoneInput.placeholder = 'Contact Phone';
+            contactPhoneInput.classList.add('contact-phone');
+            contactItem.appendChild(contactPhoneInput);
+
+            const contactDetailsInput = document.createElement('input');
+            contactDetailsInput.type = 'text';
+            contactDetailsInput.placeholder = 'Contact Details (optional)';
+            contactDetailsInput.classList.add('contact-details');
+            contactItem.appendChild(contactDetailsInput);
+
+            contactsList.appendChild(contactItem);
+        }
+
+        function toggleForm() {
+            const markerForm = document.getElementById('markerForm');
+            markerForm.style.display = markerForm.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function clearForm() {
+            document.getElementById('latitude').value = '';
+            document.getElementById('longitude').value = '';
+            document.getElementById('markerName').value = '';
+            document.getElementById('contactsList').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
